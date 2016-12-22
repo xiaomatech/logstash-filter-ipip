@@ -11,7 +11,7 @@ module SeventeenMon
     private_class_method :new
   
     def ip_db_path
-      @ip_db_path ||= '/etc/logstash/conf.d/ip2location.datx', __FILE__
+      @ip_db_path ||= '/etc/logstash/conf/ip2location.datx', __FILE__
     end
   
     def ip_db
