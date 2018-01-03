@@ -2,7 +2,6 @@
 require "logstash/filters/base"
 require "logstash/namespace"
 require "lru_redux"
-require "tempfile"
 
 module SeventeenMon
   class IPDBX
@@ -122,20 +121,7 @@ end
 
 SM = SeventeenMon
 
-# This example filter will replace the contents of the default 
-# message field with whatever you specify in the configuration.
-#
-# It is only intended to be used as an example.
 class LogStash::Filters::IPIP < LogStash::Filters::Base
-  # Setting the config_name here is required. This is how you
-  # configure this filter from your Logstash config.
-  #
-  # filter {
-  #   ipip {
-  #     message => "My message..."
-  #   }
-  # }
-  #
   config_name "ipip"
 
   # The field containing the IP address to map via ipip.
@@ -148,8 +134,8 @@ class LogStash::Filters::IPIP < LogStash::Filters::Base
 
   attr_accessor :lookup_cache
 
+  public
   def register
-    normalized_target = (@target && @target !~ /^\[[^\[\]]+\]$/) ? "[#{@target}]" : ""
     @logger.debug("Registering IPIP Filter plugin")
     self.lookup_cache ||= LruRedux::ThreadSafeCache.new(@lru_cache_size, @ttl)
     @logger.debug("Created cache...")
@@ -157,54 +143,31 @@ class LogStash::Filters::IPIP < LogStash::Filters::Base
 
   # def register
 
+  public
   def filter(event)
     return unless filter?(event)
-    ip = event.get(@source)
-    return if ip.nil? || ip.empty?
-
     ipip_data = nil
-
+    ip = event[@source]
     ip = ip.first if ip.is_a? Array
 
-    begin
-      ipip_data = lookup_ipip(ip)
-    rescue Exception => e
-      @logger.error("Unknown error while looking up IPIP data", :exception => e, :field => @field, :event => event)
+    cached = lookup_cache[ip]
+    if cached.nil?
+      begin
+        ipip_data = SM.find_by_ip ip
+      rescue Exception => e
+        @logger.error("Unknown error while looking up IPIP data", :exception => e, :field => @field, :event => event)
+      end
+    else
+      ipip_data = cached
+    end
+    
+    event[@target] = {} if event[@target].nil?
+
+    ipip_data.each do |key, value|
+      event[@target][key.to_s] = value
     end
 
-    event.set(@target, {}) if event.get(@target).nil?
-
-    return unless ipip_data
-    set_fields(event, ipip_data)
-
+    # filter_matched should go in the last line of our successful code
     return filter_matched(event)
   end
-
-  # def filter
-
-
-  def lookup_ipip(ip)
-    return unless ip
-
-    cached = lookup_cache[ip]
-    return cached if cached
-
-    ipip_data = nil
-    ipip_data = SM.find_by_ip ip
-
-    lookup_cache[ip] = ipip_data
-    ipip_data
-  end
-
-  private
-
-  def set_fields(event, ipip_data)
-    if !ipip_data.nil?
-      ipip_data.each do |key, value|
-        @prefixed_key = "#{normalized_target}[#{@key}]"
-        event.set(@prefixed_key, value)
-      end
-    end
-  end
-
-end # class LogStash::Filters::IPIP
+end
