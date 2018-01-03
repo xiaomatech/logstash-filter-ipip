@@ -137,7 +137,7 @@ class LogStash::Filters::IPIP < LogStash::Filters::Base
   public
   def register
     @logger.debug("Registering IPIP Filter plugin")
-    self.lookup_cache ||= LruRedux::ThreadSafeCache.new(@lru_cache_size, @ttl)
+    self.lookup_cache ||= LruRedux::TTL::ThreadSafeCache.new(@lru_cache_size, @ttl)
     @logger.debug("Created cache...")
   end
 
