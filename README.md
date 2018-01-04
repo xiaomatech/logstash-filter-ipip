@@ -7,9 +7,9 @@ logstash的 ipip 收费版 filter
     gem build logstash-filter-ipip.gemspec
 ```
 #install
- ``````
+ ```
     /usr/share/logstash/bin/logstash-plugin install --no-verify logstash/plugin/logstash-filter-ipip-2.0.0.gem
-```
+ ```
 
 ## 例子
 ```ruby
